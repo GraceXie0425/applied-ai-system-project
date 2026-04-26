@@ -127,25 +127,20 @@ if st.session_state.status != "playing":
         }
         _log_session(session_data)
 
-        if not os.environ.get("ANTHROPIC_API_KEY"):
-            st.error(
-                "ANTHROPIC_API_KEY is not set. "
-                "Add it to a .env file in this directory and restart the app."
-            )
-        else:
-            with st.spinner("Investigating bugs…"):
-                try:
-                    from ai_detective import run_detective
-                    report = run_detective(session_data)
-                    st.session_state.detective_report = report
-                except Exception as exc:
-                    logger.error("Detective failed: %s", exc)
-                    st.error(f"Investigation failed: {exc}")
+        with st.spinner("Investigating bugs…"):
+            try:
+                from ai_detective import run_detective
+                report = run_detective(session_data)
+                st.session_state.detective_report = report
+            except Exception as exc:
+                logger.error("Detective failed: %s", exc)
+                st.error(f"Investigation failed: {exc}")
 
     if st.session_state.detective_report:
         report = st.session_state.detective_report
+        mode = report.get("mode", "ai")
         inspected = report.get("code_sections_inspected", [])
-        if inspected:
+        if mode == "ai" and inspected:
             st.markdown(
                 "**Code sections inspected:** " + ", ".join(f"`{s}`" for s in inspected)
             )

@@ -1,25 +1,22 @@
 """
-AI Bug Detective — agentic loop that inspects a completed game session and
-identifies which of the game's known bugs the player encountered.
+AI Bug Detective — inspects a completed game session and identifies bugs.
 
-The agent is given tools to look up specific source-code sections. It calls
-those tools as needed, reasons over the evidence, then writes a plain-language
-bug report.
+Primary path: agentic Claude API loop with tool use (requires API credits).
+Fallback path: rule-based analysis that runs entirely in Python, no API needed.
 """
 
 import json
 import logging
 import os
 
-import anthropic
-
 logger = logging.getLogger(__name__)
 
-# Relevant snippets of the game's buggy source code, keyed by section name.
-# The detective uses these as evidence when building its report.
+# ---------------------------------------------------------------------------
+# Source snippets the Claude agent can request as evidence
+# ---------------------------------------------------------------------------
 _CODE_SECTIONS = {
     "check_guess": """\
-# logic_utils.py — check_guess (hints are now correct)
+# logic_utils.py — check_guess (hints are correct)
 def check_guess(guess, secret):
     if guess == secret:
         return "Win", "🎉 Correct!"
@@ -32,13 +29,13 @@ def check_guess(guess, secret):
         g = str(guess)
         if g == secret:
             return "Win", "🎉 Correct!"
-        if g > secret:                           # lexicographic comparison — wrong for cross-digit sizes
+        if g > secret:
             return "Too High", "📉 Go LOWER!"
         return "Too Low", "📈 Go HIGHER!"
 """,
     "secret_type_switch": """\
 # app.py — submit handler (type switch has been fixed)
-secret = st.session_state.secret   # always an integer now
+secret = st.session_state.secret   # always an integer
 outcome, message = check_guess(guess_int, secret)
 """,
     "get_range_for_difficulty": """\
@@ -49,22 +46,20 @@ def get_range_for_difficulty(difficulty: str):
     if difficulty == "Hard":   return 1, 50
     return 1, 100
 
-# app.py — info box now correctly uses {low} and {high} from get_range_for_difficulty
-# so Easy shows 1-20, Normal shows 1-100, Hard shows 1-50. No range mismatch.
-st.info(f"Guess a number between {low} and {high}. ...")
+# app.py — info box uses {low} and {high}, so the displayed range is correct.
 """,
     "update_score": """\
 # logic_utils.py — update_score
 def update_score(current_score, outcome, attempt_number):
     if outcome == "Win":
-        points = 100 - 10 * (attempt_number + 1)
+        points = 100 - 10 * attempt_number
         return current_score + max(points, 10)
     if outcome == "Too High":
         if attempt_number % 2 == 0:
             return current_score + 5   # BUG: rewards a wrong guess on even attempts
         return current_score - 5
     if outcome == "Too Low":
-        return current_score - 5       # always penalises Too Low, never rewards
+        return current_score - 5
     return current_score
 """,
 }
@@ -104,30 +99,130 @@ The game contains one known bug:
 
 Process:
 • Read the session data the user provides.
-• For each bug you suspect, call lookup_code_section to examine the relevant code.
+• Call lookup_code_section to inspect the update_score function.
 • Build concrete evidence: quote the specific attempt number, the guess, the
-  outcome received, and what the correct outcome should have been.
-• Write a final report that a non-programmer could understand, listing every bug
-  that actually fired during this session (ignore bugs that did not fire).
+  outcome received, and explain what the code does vs what it should do.
+• Write a plain-language report. If the bug did not fire this session, say so.
 • End with a one-sentence summary.
 """
 
 
+# ---------------------------------------------------------------------------
+# Rule-based fallback (no API required)
+# ---------------------------------------------------------------------------
+def _rule_based_report(session: dict) -> str:
+    """
+    Deterministic bug analysis that runs with no API or credits.
+    Checks the session for the one remaining intentional bug: score manipulation.
+    """
+    attempts = session.get("attempts", [])
+    difficulty = session.get("difficulty", "Normal")
+    secret = session.get("secret", "?")
+    result = session.get("final_result", "unknown")
+    score = session.get("final_score", 0)
+
+    triggered = [
+        a for a in attempts
+        if a.get("attempt", 0) % 2 == 0 and a.get("outcome") == "Too High"
+    ]
+
+    lines = [
+        "## Bug Detective Report *(rule-based)*",
+        "",
+        f"**Session:** {difficulty} difficulty · secret `{secret}` · "
+        f"result `{result}` · final score `{score}`",
+        "",
+        "---",
+        "",
+        "### Bug inspected: Score Manipulation (`update_score`)",
+        "",
+        "```python",
+        "if outcome == 'Too High':",
+        "    if attempt_number % 2 == 0:",
+        "        return current_score + 5   # BUG: rewards a wrong guess",
+        "    return current_score - 5",
+        "```",
+        "",
+    ]
+
+    if not triggered:
+        lines += [
+            "**Result: bug did not fire this session.**",
+            "",
+            "None of your wrong guesses landed on an even attempt number with "
+            "outcome `Too High`, so the +5 reward condition was never reached. "
+            "Your score was penalised correctly on every wrong guess.",
+        ]
+    else:
+        lines += [
+            f"**Result: bug fired {len(triggered)} time(s).**",
+            "",
+        ]
+        for a in triggered:
+            lines += [
+                f"- **Attempt {a['attempt']}** — you guessed `{a['guess']}` "
+                f"(outcome: *Too High*). "
+                f"Because attempt {a['attempt']} is even, `update_score` added "
+                f"**+5 points** instead of subtracting **-5 points**. "
+                f"That is a 10-point swing in your favour for a wrong answer.",
+            ]
+        lines += [
+            "",
+            "The correct behaviour would penalise every wrong guess equally "
+            "regardless of attempt parity.",
+        ]
+
+    lines += [
+        "",
+        "---",
+        "",
+        "*To run the full AI-powered analysis, add a valid `ANTHROPIC_API_KEY` "
+        "to your `.env` file.*",
+    ]
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
 def run_detective(session: dict) -> dict:
     """
-    Run the agentic bug-detective loop on a completed game session.
+    Analyse a completed game session.
 
-    Returns a dict:
-        analysis               — markdown bug report string
-        code_sections_inspected — list of section names the agent looked up
-        session                 — the original session dict
+    Tries the Claude agentic loop first. Falls back to the rule-based
+    analyser if no API key is set or if credits are exhausted.
+
+    Returns:
+        analysis                — markdown report string
+        code_sections_inspected — list of section names inspected
+        session                 — original session dict
+        mode                    — "ai" or "rule-based"
     """
     api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise EnvironmentError(
-            "ANTHROPIC_API_KEY is not set. "
-            "Add it to a .env file or export it in your shell."
-        )
+
+    if api_key:
+        try:
+            return _run_ai_detective(session, api_key)
+        except Exception as exc:
+            msg = str(exc).lower()
+            if "credit" in msg or "401" in msg or "403" in msg or "400" in msg:
+                logger.warning("API unavailable (%s); falling back to rule-based analysis.", exc)
+            else:
+                raise
+
+    logger.info("No API key or credits — using rule-based detective.")
+    return {
+        "analysis": _rule_based_report(session),
+        "code_sections_inspected": ["update_score"],
+        "session": session,
+        "mode": "rule-based",
+    }
+
+
+def _run_ai_detective(session: dict, api_key: str) -> dict:
+    """Agentic Claude tool-use loop."""
+    import anthropic
 
     client = anthropic.Anthropic(api_key=api_key)
     sections_inspected: list[str] = []
@@ -158,14 +253,12 @@ def run_detective(session: dict) -> dict:
                 (b.text for b in response.content if hasattr(b, "text")),
                 "No analysis produced.",
             )
-            logger.info(
-                "Detective finished. Sections inspected: %s",
-                sections_inspected,
-            )
+            logger.info("AI detective finished. Sections: %s", sections_inspected)
             return {
                 "analysis": analysis,
                 "code_sections_inspected": sections_inspected,
                 "session": session,
+                "mode": "ai",
             }
 
         if response.stop_reason == "tool_use":
@@ -194,4 +287,5 @@ def run_detective(session: dict) -> dict:
         "analysis": "Investigation could not be completed.",
         "code_sections_inspected": sections_inspected,
         "session": session,
+        "mode": "ai",
     }

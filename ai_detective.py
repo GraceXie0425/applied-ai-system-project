@@ -37,15 +37,9 @@ def check_guess(guess, secret):
         return "Too Low", "📈 Go HIGHER!"
 """,
     "secret_type_switch": """\
-# app.py — submit handler
-if st.session_state.attempts % 2 == 0:
-    secret = str(st.session_state.secret)   # even attempts: secret becomes a STRING
-else:
-    secret = st.session_state.secret        # odd  attempts: secret is an INT
+# app.py — submit handler (type switch has been fixed)
+secret = st.session_state.secret   # always an integer now
 outcome, message = check_guess(guess_int, secret)
-# When secret is a string, int > str raises TypeError and falls into the
-# lexicographic branch of check_guess, which gives wrong results for guesses
-# whose first digit differs from the secret's first digit (e.g. 9 vs 10).
 """,
     "get_range_for_difficulty": """\
 # logic_utils.py — get_range_for_difficulty
@@ -104,10 +98,9 @@ You are a bug detective for a deliberately broken number-guessing game called
 "Game Glitch Investigator". Your job is to examine a player's completed session
 and produce a clear, evidence-based bug report.
 
-The game contains two categories of known bugs:
-1. Type confusion — on even-numbered attempts the secret is cast to a string,
-   causing lexicographic comparison instead of numeric comparison.
-2. Score manipulation — wrong guesses are sometimes rewarded on even attempts.
+The game contains one known bug:
+1. Score manipulation — on even-numbered attempts, a wrong "Too High" guess is
+   rewarded with +5 points instead of penalised with -5 points.
 
 Process:
 • Read the session data the user provides.

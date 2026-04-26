@@ -349,5 +349,4 @@ applied-ai-system-final/
 
 | Bug | Location |
 |-----|----------|
-| Type confusion — even attempts compare `str` vs `int` | `app.py` submit handler |
-| Score manipulation — wrong guesses rewarded on even attempts | `logic_utils.update_score` |
+| Score manipulation — wrong "Too High" guesses rewarded on even attempts | `logic_utils.update_score` |

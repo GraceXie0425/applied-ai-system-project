@@ -169,13 +169,8 @@ if submit:
     else:
         st.session_state.history.append(guess_int)
 
-        # BUG: type switch — even attempts compare against a string secret
-        if st.session_state.attempts % 2 == 0:
-            secret = str(st.session_state.secret)
-            secret_type = "string"
-        else:
-            secret = st.session_state.secret
-            secret_type = "integer"
+        secret = st.session_state.secret
+        secret_type = "integer"
 
         outcome, message = check_guess(guess_int, secret)
 

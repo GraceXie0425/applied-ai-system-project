@@ -180,8 +180,8 @@ quality:
 | Session | Bugs expected | Bugs correctly identified |
 |---------|---------------|--------------------------|
 | Normal mode, hints followed — hit type confusion on attempt 2 | Type confusion, hint reversal | Both, with correct attempt numbers |
-| Hard mode, guessed above 50 — hit range mismatch | Range mismatch, hint reversal | Both; detective quoted the `get_range_for_difficulty` snippet accurately |
-| Even attempt with score reward — hit score manipulation | Score manipulation | Identified; correctly noted the `attempt_number % 2 == 0` condition |
+| Normal mode, wrong guess on even attempt — hit score reward | Score manipulation | Identified; correctly noted the `attempt_number % 2 == 0` condition |
+| Hard mode, multiple wrong guesses — hit hint reversal and type confusion | Hint reversal, type confusion | Both; detective traced the exact attempt numbers where each fired |
 
 ### What surprised me
 

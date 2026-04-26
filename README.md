@@ -351,5 +351,4 @@ applied-ai-system-final/
 |-----|----------|
 | Hint reversal — directions are backwards | `logic_utils.check_guess` |
 | Type confusion — even attempts compare `str` vs `int` | `app.py` submit handler |
-| Range display mismatch — Hard shows 1–100, actual range is 1–50 | `app.py` info box |
 | Score manipulation — wrong guesses rewarded on even attempts | `logic_utils.update_score` |

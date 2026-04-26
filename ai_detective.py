@@ -52,11 +52,12 @@ outcome, message = check_guess(guess_int, secret)
 def get_range_for_difficulty(difficulty: str):
     if difficulty == "Easy":   return 1, 20
     if difficulty == "Normal": return 1, 100
-    if difficulty == "Hard":   return 1, 50   # actual range is 1–50
+    if difficulty == "Hard":   return 1, 50
     return 1, 100
 
-# app.py — info box (always shows the wrong range for Hard)
-st.info(f"Guess a number between 1 and 100. ...")
+# app.py — info box now correctly uses {low} and {high} from get_range_for_difficulty
+# so Easy shows 1-20, Normal shows 1-100, Hard shows 1-50. No range mismatch.
+st.info(f"Guess a number between {low} and {high}. ...")
 """,
     "update_score": """\
 # logic_utils.py — update_score
@@ -103,12 +104,11 @@ You are a bug detective for a deliberately broken number-guessing game called
 "Game Glitch Investigator". Your job is to examine a player's completed session
 and produce a clear, evidence-based bug report.
 
-The game contains four categories of known bugs:
+The game contains three categories of known bugs:
 1. Hint reversal — hints tell the player to go in the wrong direction.
 2. Type confusion — on even-numbered attempts the secret is cast to a string,
    causing lexicographic comparison instead of numeric comparison.
-3. Range display mismatch — Hard difficulty actually uses 1–50 but the UI says 1–100.
-4. Score manipulation — wrong guesses are sometimes rewarded on even attempts.
+3. Score manipulation — wrong guesses are sometimes rewarded on even attempts.
 
 Process:
 • Read the session data the user provides.

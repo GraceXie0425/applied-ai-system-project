@@ -169,7 +169,7 @@ Expected output: 3 tests pass.
 
 ## Sample Interactions
 
-### Example 1 — Hint reversal bug
+
 
 **Session:** Normal difficulty, secret = 37. Player guesses 60, receives hint
 "📈 Go HIGHER!" and guesses even higher next turn, moving further from the answer.
@@ -208,9 +208,6 @@ Expected output: 3 tests pass.
 > attempt, and lexicographic secret comparison on even-numbered attempts.
 
 ---
-
-### Example 2 — Range mismatch on Hard
-
 **Session:** Hard difficulty, player guesses 80 and 90, both marked "Too High".
 
 **Detective output (abridged):**
@@ -224,19 +221,11 @@ Expected output: 3 tests pass.
 
 ---
 
-### Example 3 — Score manipulation
+## Demo Walkthrough
 
-**Session:** Player gets a wrong "Too High" on attempt 2 (even-numbered).
-
-**Detective output (abridged):**
-> Inspecting `update_score`: when `outcome == "Too High"` and the attempt number
-> is even, the function *adds* 5 points instead of subtracting them. On attempt
-> 2 you guessed wrong and your score went up by 5. This is the opposite of a
-> penalty — the game is rewarding incorrect guesses on even turns. No equivalent
-> bonus exists for `"Too Low"`, so the scoring is also asymmetric.
+![Game demo](assets/demo.gif)
 
 ---
-
 ## Design Decisions
 
 **Why an agentic tool-use loop instead of a single prompt?**
@@ -345,8 +334,3 @@ applied-ai-system-final/
 └── reflection.md
 ```
 
-## Known Bugs (intentional)
-
-| Bug | Location |
-|-----|----------|
-| Score manipulation — wrong "Too High" guesses rewarded on even attempts | `logic_utils.update_score` |

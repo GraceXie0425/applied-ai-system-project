@@ -19,22 +19,22 @@ logger = logging.getLogger(__name__)
 # The detective uses these as evidence when building its report.
 _CODE_SECTIONS = {
     "check_guess": """\
-# logic_utils.py — check_guess
+# logic_utils.py — check_guess (hints are now correct)
 def check_guess(guess, secret):
     if guess == secret:
         return "Win", "🎉 Correct!"
     try:
         if guess > secret:
-            return "Too High", "📈 Go HIGHER!"   # hint says HIGHER but guess was too HIGH → should say LOWER
+            return "Too High", "📉 Go LOWER!"
         else:
-            return "Too Low", "📉 Go LOWER!"    # hint says LOWER  but guess was too LOW  → should say HIGHER
+            return "Too Low", "📈 Go HIGHER!"
     except TypeError:
         g = str(guess)
         if g == secret:
             return "Win", "🎉 Correct!"
         if g > secret:                           # lexicographic comparison — wrong for cross-digit sizes
-            return "Too High", "📈 Go HIGHER!"
-        return "Too Low", "📉 Go LOWER!"
+            return "Too High", "📉 Go LOWER!"
+        return "Too Low", "📈 Go HIGHER!"
 """,
     "secret_type_switch": """\
 # app.py — submit handler
@@ -104,11 +104,10 @@ You are a bug detective for a deliberately broken number-guessing game called
 "Game Glitch Investigator". Your job is to examine a player's completed session
 and produce a clear, evidence-based bug report.
 
-The game contains three categories of known bugs:
-1. Hint reversal — hints tell the player to go in the wrong direction.
-2. Type confusion — on even-numbered attempts the secret is cast to a string,
+The game contains two categories of known bugs:
+1. Type confusion — on even-numbered attempts the secret is cast to a string,
    causing lexicographic comparison instead of numeric comparison.
-3. Score manipulation — wrong guesses are sometimes rewarded on even attempts.
+2. Score manipulation — wrong guesses are sometimes rewarded on even attempts.
 
 Process:
 • Read the session data the user provides.

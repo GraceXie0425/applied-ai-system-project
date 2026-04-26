@@ -349,6 +349,5 @@ applied-ai-system-final/
 
 | Bug | Location |
 |-----|----------|
-| Hint reversal — directions are backwards | `logic_utils.check_guess` |
 | Type confusion — even attempts compare `str` vs `int` | `app.py` submit handler |
 | Score manipulation — wrong guesses rewarded on even attempts | `logic_utils.update_score` |

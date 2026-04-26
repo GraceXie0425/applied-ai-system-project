@@ -53,8 +53,18 @@ st.sidebar.caption(f"Attempts allowed: {attempt_limit}")
 # ---------------------------------------------------------------------------
 # Session state initialisation
 # ---------------------------------------------------------------------------
-if "secret" not in st.session_state:
+difficulty_changed = st.session_state.get("active_difficulty") != difficulty
+
+if "secret" not in st.session_state or difficulty_changed:
     st.session_state.secret = random.randint(low, high)
+    st.session_state.active_difficulty = difficulty
+    st.session_state.attempts = 0
+    st.session_state.score = 0
+    st.session_state.status = "playing"
+    st.session_state.history = []
+    st.session_state.attempt_log = []
+    st.session_state.detective_report = None
+
 if "attempts" not in st.session_state:
     st.session_state.attempts = 0
 if "score" not in st.session_state:
@@ -64,7 +74,6 @@ if "status" not in st.session_state:
 if "history" not in st.session_state:
     st.session_state.history = []
 if "attempt_log" not in st.session_state:
-    # Structured log consumed by the AI detective
     st.session_state.attempt_log = []
 if "detective_report" not in st.session_state:
     st.session_state.detective_report = None
